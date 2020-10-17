@@ -37,7 +37,6 @@ client.on('message', message => {
   client.user.setActivity('finna mute chat');
 
   const channel = message.channel;
-  const cid = channel.id;
   const messageStr = message.content.toLowerCase();
 
   if (messageStr.startsWith('?') || message.mentions.has(client.user))
