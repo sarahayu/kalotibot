@@ -31,7 +31,7 @@ client.on('guildCreate', guild => {
 });
 
 client.on('message', message => {
-  if (message.author.bot) return;
+  if (message.author.id  ==  client.user.id) return;
 
   // sometimes user activity gets unset so just reset periodically when someone messages
   client.user.setActivity('finna mute chat');
