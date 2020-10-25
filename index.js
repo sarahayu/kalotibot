@@ -16,22 +16,18 @@ client.on('ready', () => {
 })
 
 client.on('guildCreate', guild => {
-  let cid;
+
   let channels = guild.channels.cache;
+  let textChannel;
 
-  for (let c in channels)
-    if (channels[c].type === 'text')
-    {
-      cid = channels[c].id;
-      break;
-    }
+  if (guild.systemChannelID) textChannel = channels.get(guild.systemChannelID)
+  else textChannel = channels.find(channel => channel.type == 'text');
 
-  let channel = client.channels.cache.get(guild.systemChannelID || cid);
-  channel.send('Ask me questions by mentioning me or by beginning your message with `?`');
+  textChannel.send('Ask me questions by mentioning me or by beginning your message with `?`');
 });
 
 client.on('message', message => {
-  if (message.author.id  ==  client.user.id) return;
+  if (message.author.id == client.user.id) return;
 
   // sometimes user activity gets unset so just reset periodically when someone messages
   client.user.setActivity('finna mute chat');
