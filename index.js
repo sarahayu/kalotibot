@@ -50,48 +50,54 @@ client.on('message', message => {
         .then(res => {
           if (res.ok)
             return res.json()
-          throw Error('Too many requests!')
+          throw new Error('Too many requests!')
         })
         .then(data => {
           
           if (data.searchInformation.totalResults == 0 || !data.items[0].pagemap.answer || data.items[0].pagemap.answer.length == 0)
           {
             channel.send(`Uh oh, there were no answers on StackOverflow for \`${question}\`! Try another query`)
-            throw Error('There were no search results!')
+            throw new Error('There were no search results!')
           }
           else
             // return answer id to use with SO API
+            // an example url for the top answer would be https://stackoverflow.com/questions/9751845/apt-get-for-cygwin/9914095#9914095
+            // it would be possible to just use the Google API for this project, but it only gives a snippet of the answer
+            // so we need to use SO API to get the full answer
+            // it would also be possible to just use SO search API on its own, but documentation states it is
+            // "intentionally limited" and I found it to not be quite robust, so we'll use Google for the general search
+            // and SO API to get the full version of the answer
+            // pog
             return data.items[0].pagemap.answer[0].url.split('#')[1]
         })
-        .then(answerID => {
-          fetch(`https://api.stackexchange.com/2.2/answers/${answerID}?order=desc&sort=votes&site=stackoverflow&filter=!)Q2ANGPK-PaVQyL*qqBBXAue`)
-          .then(res => {
-            if (res.ok)
-              return res.json()
-            throw Error('Too many requests!')
-          })
-          .then(data => {
-            const answer = data.items[0]
+        .then(answerID =>
+          fetch(`https://api.stackexchange.com/2.2/answers/${answerID}?order=desc&sort=votes&site=stackoverflow&filter=!)Q2ANGPK-PaVQyL*qqBBXAue`))
+        .then(res => {
+          if (res.ok)
+            return res.json()
+          throw new Error('Too many requests!')
+        })
+        .then(data => {
+          const answer = data.items[0]
 
-            let answerStr = turndown.turndown(unescape(answer.body)).replace(/>/g, '\\>')
-            if (answerStr.length > 1024) answerStr = answerStr.substring(0, 1021) + '...'
+          // unescape &gt; and other characters, convert to Discord Markdown, and replace > characters with \> to avoid embeds turning them into quotes
+          let answerStr = turndown.turndown(unescape(answer.body)).replace(/>/g, '\\>')
+          if (answerStr.length > 1024) answerStr = answerStr.substring(0, 1021) + '...'
 
-            channel.send({
-              embed: {
-                color: 0xff8e42,
-                author: {
-                  name: answer.owner.display_name
-                },
-                title: answer.title,
-                url: answer.link,
-                description: answerStr
-              }
-            })
+          channel.send({
+            embed: {
+              color: 0xff8e42,
+              author: {
+                name: answer.owner.display_name
+              },
+              title: answer.title,
+              url: answer.link,
+              description: answerStr
+            }
           })
-          .catch(err => {
-            console.log(err)
-          })
-
+        })
+        .catch(err => {
+          console.log(err)
         })
     }
   }
