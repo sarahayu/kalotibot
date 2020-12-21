@@ -5,7 +5,7 @@ const TurndownService = require('turndown')
 const responses = require('./responses.json')
 const { token, key, id } = require('./secure.json')
 const client = new Discord.Client()
-const turndown  = new TurndownService()
+const turndown  = new TurndownService({ codeBlockStyle: 'fenced' })
 
 function log(message) 
 {
@@ -50,47 +50,46 @@ client.on('message', message => {
         .then(res => {
           if (res.ok)
             return res.json()
-          throw new Error('Too many requests!')
+          throw new Error('Could not retrieve information: There are too many requests!')
         })
         .then(data => {
           
           if (data.searchInformation.totalResults == 0 || !data.items[0].pagemap.answer || data.items[0].pagemap.answer.length == 0)
-          {
-            channel.send(`Uh oh, there were no answers on StackOverflow for \`${question}\`! Try another query`)
-            throw new Error('There were no search results!')
-          }
-          else
-            // return answer id to use with SO API
-            // an example url for the top answer would be https://stackoverflow.com/questions/9751845/apt-get-for-cygwin/9914095#9914095
-            // it would be possible to just use the Google API for this project, but it only gives a snippet of the answer
-            // so we need to use SO API to get the full answer
-            // it would also be possible to just use SO search API on its own, but documentation states it is
-            // "intentionally limited" and I found it to not be quite robust, so we'll use Google for the general search
-            // and SO API to get the full version of the answer
-            // pog
-            return data.items[0].pagemap.answer[0].url.split('#')[1]
+            throw new Error(`Uh oh, there were no answers on StackOverflow for \`${question}\`! Try another query`)
+          
+          // use answer id with SO API
+          // an example url for the top answer would be https://stackoverflow.com/questions/9751845/apt-get-for-cygwin/9914095#9914095
+          // it would be possible to just use the Google API for this project, but it only gives a snippet of the answer
+          // so we need to use SO API to get the full answer
+          // it would also be possible to just use SO search API on its own, but documentation states it is
+          // "intentionally limited" and I found it to not be quite robust, so we'll use Google for the general search
+          // and SO API to get the full version of the answer
+          // pog
+          const answerID = data.items[0].pagemap.answer[0].url.split('#')[1]
+          return fetch(`https://api.stackexchange.com/2.2/answers/${answerID}?order=desc&sort=votes&site=stackoverflow&filter=!)Q2ANGPK-PaVQyL*qqBBXAue`)
         })
-        .then(answerID =>
-          fetch(`https://api.stackexchange.com/2.2/answers/${answerID}?order=desc&sort=votes&site=stackoverflow&filter=!)Q2ANGPK-PaVQyL*qqBBXAue`))
         .then(res => {
           if (res.ok)
             return res.json()
-          throw new Error('Too many requests!')
+          throw new Error('Could not retrieve information: There are too many requests!')
         })
         .then(data => {
           const answer = data.items[0]
 
-          // unescape &gt; and other characters, convert to Discord Markdown, and replace > characters with \> to avoid embeds turning them into quotes
-          let answerStr = turndown.turndown(unescape(answer.body)).replace(/>/g, '\\>')
+          // turndown converts html to standard Markdown that Discord uses
+          // set default language to that delicious c code highlighting, after all most people in this discord chat
+          // will be using C/C++
+          let answerStr = turndown.turndown(answer.body.replace(/<code>/g, '<code class="language-c">'))
           if (answerStr.length > 1024) answerStr = answerStr.substring(0, 1021) + '...'
-
+          
           channel.send({
             embed: {
               color: 0xff8e42,
               author: {
-                name: answer.owner.display_name
+                // turndown also unescapes html entities i.e. &amp; which is convenient
+                name: turndown.turndown(answer.owner.display_name)
               },
-              title: answer.title,
+              title: turndown.turndown(answer.title),
               url: answer.link,
               description: answerStr
             }
@@ -98,6 +97,7 @@ client.on('message', message => {
         })
         .catch(err => {
           console.log(err)
+          channel.send(err.message)
         })
     }
   }
