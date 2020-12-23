@@ -76,11 +76,29 @@ client.on('message', message => {
         .then(data => {
           const answer = data.items[0]
 
-          // turndown converts html to standard Markdown that Discord uses
           // set default language to that delicious c code highlighting, after all most people in this discord chat
           // will be using C/C++
-          let answerStr = turndown.turndown(answer.body.replace(/<code>/g, '<code class="language-c">'))
-          if (answerStr.length > 1024) answerStr = answerStr.substring(0, 1021) + '...'
+          let wasCut = false
+          let answerBody = answer.body.replace(/<code>/g, '<code class="language-c">')
+          if (answerBody.length > 1100) 
+          {
+            answerBody = answerBody.substring(0, 1100)
+            wasCut = true
+          }
+          
+          // turndown converts html to standard Markdown that Discord uses
+          // conveniently, turndown will close any open tags that could have been a result of substringing
+          // also, replace double newlines after code fence with just one newline
+          let answerStr = turndown.turndown(answerBody).replace(/```\n\n/g,'```\n')
+
+          // if the cut answer ended with a fenced code block, put the ellipses inside code block
+          if (wasCut)
+          {
+            if (answerStr.endsWith('\n```'))
+              answerStr = answerStr.slice(0, -4) + '…' + '```'
+            else
+              answerStr += '…'
+          }
           
           channel.send({
             embed: {
